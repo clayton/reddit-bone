@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>/r/pics Viewer</title>
+  <script src="jquery.min.js" type="text/javascript" charset="utf-8"></script>
+  <script src="underscore-min.js" type="text/javascript" charset="utf-8"></script>
+  <script src="backbone-min.js" type="text/javascript" charset="utf-8"></script>
+  <script src="mustache.js" type="text/javascript" charset="utf-8"></script>
+  <script type="text/javascript" src="jquery.fancybox-1.3.4/fancybox/jquery.fancybox-1.3.4.js"></script>
+  <link rel="stylesheet" href="jquery.fancybox-1.3.4/fancybox/jquery.fancybox-1.3.4.css" type="text/css" media="screen" title="no title" charset="utf-8" />
+</head>
+<body>
+  <div id="lightbox">
+
+  </div>
+
+  <script type="text/javascript" charset="utf-8">
+    $(document).ready(function(){
+
+      window.Picture = Backbone.Model.extend({
+        parse:function(response){
+          return response.data;
+        }
+      });
+
+      window.PictureList = Backbone.Collection.extend({
+        model: Picture,
+        url: 'pics.json',
+        parse:function(response){
+          return response.data.children;
+        },
+        getPictureUrls:function(){
+          var pictures = this.map(function(picture){
+            if(picture.get("domain") != "imgur.com"){
+              return {"src":picture.get("url"), "title":picture.get("title")};
+            }
+          });
+          return {"pictures" : _.compact(pictures)};
+        }
+      });
+
+      window.LightBox = Backbone.View.extend({
+        el: "div#lightbox",
+        template: '{{#pictures}}<a href="{{src}}" rel="reddit_pics" title="{{title}}">{{title}}</a>{{/pictures}}',
+        initialize:function(){
+          _.bindAll(this, 'render');
+          this.render();
+        },
+        render:function(){
+          $(this.el).html(Mustache.to_html(this.template, this.collection.getPictureUrls()));
+          this.$('a').fancybox();
+          this.$('a').hide();
+          this.$('a').click();
+        }
+      });
+
+      window.app = Backbone.Router.extend({
+        routes:{
+          '' : 'index'
+        },
+
+        index:function(){
+          window.pictureList = new window.PictureList();
+          window.pictureList.fetch({
+            success:function(collection, response){
+              window.lightbox = new window.LightBox({collection:collection});
+            },
+            error:function(collection, response){
+              alert("There was an error reading the /r/pics JSON!")
+            }
+          });
+
+        }
+      });
+
+      var viewer = new window.app();
+      Backbone.history.start({pushState: true});
+      viewer.navigate('', {"trigger":true});
+
+
+    });
+  </script>
+</body>
+</html>
